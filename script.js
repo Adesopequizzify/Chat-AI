@@ -1,130 +1,112 @@
 const messageInput = document.getElementById('message-input');
-    const sendButton = document.getElementById('send-button');
-    const chatMessages = document.getElementById('chat-messages');
+const sendButton = document.getElementById('send-button');
+const chatMessages = document.getElementById('chat-messages');
+let requestCount = 0;
 
-    // Handle send button click
-    sendButton.addEventListener('click', async function() {
-        const message = messageInput.value.trim();
+sendButton.addEventListener('click', async function() {
+    const userMessage = messageInput.value.trim();
 
-        if (message !== '') {
-            // Display user message in the chat interface
-            displayMessage('user', message);
+    if (userMessage !== '') {
+        // Display user message in the chat interface
+        displayMessage('user', userMessage);
 
-            // Detect user intent
-            const intent = detectIntent(message);
-
-
-            // Take appropriate action based on intent
-            switch (intent) {
-                case 'greeting':
-                    handleGreeting();
-                    break;
-                case 'identity':
-                    handleIdentity();
-                    break;
-                default:
-                    // No specific intent detected, send the message to the model
-                    const context = createContext(intent);
-                    const response = await sendMessageToModel(message, context);
-                    if (response) {
-                        displayMessage('model', response);
-                    } else {
-                        displayMessage('model', 'Oops! Something went wrong. Please try again.');
-                    }
-                    break;
-            }
-
-            // Clear the input field
-            messageInput.value = '';
-        }
-    });
-
-    // Function to determine user intent based on message content
-    function detectIntent(message) {
-        const lowerCaseMessage = message.toLowerCase();
-
-        if (lowerCaseMessage.includes('hello') || lowerCaseMessage.includes('hi')) {
-            return 'greeting';
-        } else if (lowerCaseMessage.includes('who') && lowerCaseMessage.includes('you')) {
-            return 'identity';
+        // Send message to the model and handle response
+        try {
+            const response = await sendMessageToModel(userMessage);
+            handleModelResponse(response);
+        } catch (error) {
+            displayMessage('model', 'Oops! An error occurred. Please try again.');
         }
 
-        // If no specific intent is detected, return a default intent
-        return 'default';
+        // Clear the input field
+        messageInput.value = '';
     }
+});
 
-    // Function to create context based on intent
-    function createContext(intent) {
-        switch (intent) {
-            case 'greeting':
-                return 'You\'re a helpful assistant.';
-            default:
-                return '';
-        }
-    }
-
-    // Handle greeting intent
-    function handleGreeting() {
-        const greetingResponse = 'Hello! How can I assist you today?';
-        displayMessage('model', greetingResponse);
-    }
-
-    // Handle identity intent
-    function handleIdentity() {
-        const identityResponse = 'I\'m a helpful assistant here to provide you with information and assistance.';
-        displayMessage('model', identityResponse);
-    }
-
-    // Function to send user message and context to the ChatGPT model
-    async function sendMessageToModel(message, context) {
+async function sendMessageToModel(message) {
     try {
-        const response = await fetch('https://api.openai.com/v1/engines/davinci-codex/completions', {
+        const requestOptions = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer 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',
+                'Authorization': `Bearer your-api-key`, // Replace with your API key
             },
             body: JSON.stringify({
-                prompt: message,
-                max_tokens: 100,
-                temperature: 0.7,
-                n: 1,
-                stop: '\n',
-                context: context,
-            }),
-        });
+                "model": "gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": message}]
+            })
+        };
 
-        if (!response.ok) {
-            throw new Error('Request failed with status: ' + response.status);
-        }
-
+        const response = await fetch(API_URL, requestOptions);
         const data = await response.json();
-        const modelReply = data.choices[0].text.trim();
+        const modelReply = formatChatResponse(data.choices[0].message.content);
+
         return modelReply;
     } catch (error) {
-        console.error(error);
-        return null;
+        throw new Error(error);
     }
 }
 
+function handleModelResponse(response) {
+    // Display model response in the chat interface
+    displayMessage('model', response);
 
-
-    // Display message in the chat interface
-    function displayMessage(sender, message) {
-        const messageContainer = document.createElement('div');
-        messageContainer.classList.add('message-container');
-        messageContainer.classList.add(sender + '-message');
-
-        const messageBubble = document.createElement('div');
-        messageBubble.classList.add('message');
-
-        const messageText = document.createElement('div');
-        messageText.classList.add('message-text');
-        messageText.textContent = message;
-
-        messageBubble.appendChild(messageText);
-        messageContainer.appendChild(messageBubble);
-
-        chatMessages.appendChild(messageContainer);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+    // Update request count and handle limits
+    requestCount++;
+    if (requestCount === 75) {
+        sendButton.disabled = true;
+        messageInput.disabled = true;
+        displayMessage('model', 'You\'ve reached the number of requests today. Please support us by sharing with your friends: <a href="https://ai.quizzify.com.ng">ai.quizzify.com.ng</a>.');
     }
+}
+
+function displayMessage(sender, message) {
+    const messageContainer = document.createElement('div');
+    messageContainer.classList.add('message-container');
+    messageContainer.classList.add(sender + '-message');
+
+    const messageBubble = document.createElement('div');
+    messageBubble.classList.add('message');
+
+    const messageText = document.createElement('div');
+    messageText.classList.add('message-text');
+    messageText.innerHTML = message; // Use innerHTML to render anchor tags
+
+    messageBubble.appendChild(messageText);
+    messageContainer.appendChild(messageBubble);
+
+    chatMessages.appendChild(messageContainer);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function detectIntent(message) {
+    const lowerCaseMessage = message.toLowerCase();
+
+    if (lowerCaseMessage.includes('hello') || lowerCaseMessage.includes('hi')) {
+        return 'greeting';
+    } else if (lowerCaseMessage.includes('who') && lowerCaseMessage.includes('you')) {
+        return 'identity';
+    }
+
+    // If no specific intent is detected, return a default intent
+    return 'default';
+}
+
+function createContext(intent) {
+    switch (intent) {
+        case 'greeting':
+            return 'You\'re a helpful assistant.';
+        default:
+            return '';
+    }
+}
+
+function handleGreeting() {
+    const greetingResponse = 'Hello! How can I assist you today?';
+    displayMessage('model', greetingResponse);
+}
+
+function handleIdentity() {
+    const identityResponse = 'I\'m a helpful assistant here to provide you with information and assistance.';
+    displayMessage('model', identityResponse);
+}
