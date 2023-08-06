@@ -1,0 +1,70 @@
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      padding: 20px;
+      background-color: #F0F0F0;
+      /* Add neumorphism styling here */
+    }
+
+    .chat-messages {
+      flex-grow: 1;
+      padding: 20px;
+      background-color: #F5F5F5;
+      /* Add neumorphism styling here */
+    }
+
+    .input-container {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      background-color: #F0F0F0;
+      /* Add neumorphism styling here */
+    }
+
+    /* Chat message styling */
+    .chat-messages .message-container {
+      display: flex;
+      justify-content: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .chat-messages .message-container.user-message {
+      justify-content: flex-end;
+    }
+
+    .chat-messages .message {
+      padding: 10px;
+      border-radius: 10px;
+      /* Add neumorphism styling here */
+    }
+
+    .chat-messages .user-message .message {
+      background-color: #DCF8C6;
+    }
+
+    .chat-messages .model-message .message {
+      background-color: #E8E8E8;
+    }
+
+    .chat-messages .message-text {
+      max-width: 70%;
+    }
+
+    /* Input field and button */
+    .message-input {
+      flex-grow: 1;
+      padding: 10px;
+      border-radius: 10px;
+      /* Add neumorphism styling here */
+    }
+
+    .send-button {
+      padding: 10px 20px;
+      margin-left: 10px;
+      border-radius: 10px;
+      /* Add neumorphism styling here */
+    }
