@@ -1,112 +1,148 @@
-const messageInput = document.getElementById('message-input');
-const sendButton = document.getElementById('send-button');
-const chatMessages = document.getElementById('chat-messages');
-let requestCount = 0;
-
-sendButton.addEventListener('click', async function() {
-    const userMessage = messageInput.value.trim();
-
-    if (userMessage !== '') {
-        // Display user message in the chat interface
-        displayMessage('user', userMessage);
-
-        // Send message to the model and handle response
-        try {
-            const response = await sendMessageToModel(userMessage);
-            handleModelResponse(response);
-        } catch (error) {
-            displayMessage('model', 'Oops! An error occurred. Please try again.');
+  const messageBar = document.getElementById("message-input");
+  const sendBtn = document.getElementById("send-button");
+  const messageBox = document.getElementById("chat-messages");
+  const requestCounter = document.getElementById("requestCounter");
+  
+  let API_URL = "https://api.openai.com/v1/chat/completions";
+  let API_KEY = "";
+  let requestCount = 0;
+  
+  sendBtn.onclick = function() {
+    if (messageBar.value.length > 0) {
+      const userTypedMessage = messageBar.value;
+      messageBar.value = "";
+  
+      let userMessage =
+        `<div class="chat message-container user-message">
+          <div class="message user-message">
+            ${userTypedMessage}
+          </div>
+        </div>`;
+  
+      let modelMessage =
+        `<div class="chat message-container model-message">
+          <div class="message model-message">
+            ...
+          </div>
+        </div>`;
+  
+      messageBox.insertAdjacentHTML("beforeend", userMessage);
+  
+      setTimeout(() => {
+        messageBox.insertAdjacentHTML("beforeend", modelMessage);
+  
+        const requestOptions = {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${API_KEY}`
+          },
+          body: JSON.stringify({
+            "model": "gpt-3.5-turbo",
+            "messages": [{ "role": "user", "content": userTypedMessage }]
+          })
+        };
+  
+        fetch(API_URL, requestOptions)
+          .then(res => res.json())
+          .then(data => {
+            const chatBotResponse = document.querySelector(".model-message .message");
+            const formattedResponse = formatChatResponse(data.choices[0].message.content);
+            chatBotResponse.innerHTML = formattedResponse;
+  
+            messageBox.insertAdjacentHTML("beforeend", `<div class="chat"></div>`);
+  
+            scrollToBottom();
+          })
+          .catch((error) => {
+            const chatBotResponse = document.querySelector(".model-message .message");
+            chatBotResponse.innerHTML = "Oops! An error occurred. Please try again.";
+  
+            messageBox.insertAdjacentHTML("beforeend", `<div class="chat"></div>`);
+  
+            scrollToBottom();
+          });
+  
+        requestCount++;
+        requestCounter.textContent = requestCount;
+  
+        if (requestCount === 75) {
+          const limitMessage =
+            `<div class="chat message-container model-message">
+              <div class="message model-message">
+                You've reached the number of requests today. Please support us by sharing with your friends: <a href="https://ai.quizzify.com.ng">ai.quizzify.com.ng</a>.
+              </div>
+            </div>`;
+  
+          messageBox.insertAdjacentHTML("beforeend", limitMessage);
+  
+          messageBox.insertAdjacentHTML("beforeend", `<div class="chat"></div>`);
+  
+          scrollToBottom();
+          sendBtn.disabled = true;
+          messageBar.disabled = true;
         }
-
-        // Clear the input field
-        messageInput.value = '';
+      }, 100);
     }
+  };
+  messageBox.addEventListener("click", function (event) {
+  if (event.target.classList.contains("fa-clipboard")) {
+    const responseText = event.target.previousElementSibling.textContent;
+    copyToClipboard(responseText);
+
+    event.target.classList.add("clicked");
+    setTimeout(function () {
+      event.target.classList.remove("clicked");
+    }, 300);
+
+    // Show the Bootstrap alert when clipboard is clicked
+    showClipboardAlert();
+  }
 });
 
-async function sendMessageToModel(message) {
-    try {
-        const requestOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer your-api-key`, // Replace with your API key
-            },
-            body: JSON.stringify({
-                "model": "gpt-3.5-turbo",
-                "messages": [{"role": "user", "content": message}]
-            })
-        };
+// Function to format mathematical answers and emphasize important parts
+function formatChatResponse(responseText) {
+  let formattedResponse = responseText.replace(/\*/g, "×").replace(/\//g, "÷");
 
-        const response = await fetch(API_URL, requestOptions);
-        const data = await response.json();
-        const modelReply = formatChatResponse(data.choices[0].message.content);
+  // Emphasize important parts (you can customize this based on your criteria)
+  formattedResponse = formattedResponse.replace(/(result|answer|solution)/gi, '<strong>$1</strong>');
 
-        return modelReply;
-    } catch (error) {
-        throw new Error(error);
-    }
+  // Additional formatting for mathematical symbols
+  formattedResponse = formattedResponse.replace(/(\+\s*\-\s*|\-\s*\+\s*|\+\s*\+\s*|\-\s*\-\s*)/g, "±"); // Plus-Minus (±)
+  formattedResponse = formattedResponse.replace(/\^2/g, "<sup>2</sup>"); // Square (x^2)
+  formattedResponse = formattedResponse.replace(/\^3/g, "<sup>3</sup>"); // Cube (x^3)
+  formattedResponse = formattedResponse.replace(/sqrt\(([^)]+)\)/g, "√$1"); // Square Root (sqrt(x))
+  formattedResponse = formattedResponse.replace(/(\d+)\^(\d+)/g, "$1<sup>$2</sup>"); // Exponent (x^y)
+
+  return formattedResponse;
 }
 
-function handleModelResponse(response) {
-    // Display model response in the chat interface
-    displayMessage('model', response);
+// Function to display Bootstrap alert when clipboard icon is clicked
+function showClipboardAlert() {
+  const clipboardAlert = document.createElement("div");
+  clipboardAlert.classList.add("alert", "alert-success", "alert-dismissible", "fade", "show");
+  clipboardAlert.innerHTML = `
+    <strong>Copied!</strong> Response text has been copied to clipboard.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  `;
 
-    // Update request count and handle limits
-    requestCount++;
-    if (requestCount === 75) {
-        sendButton.disabled = true;
-        messageInput.disabled = true;
-        displayMessage('model', 'You\'ve reached the number of requests today. Please support us by sharing with your friends: <a href="https://ai.quizzify.com.ng">ai.quizzify.com.ng</a>.');
-    }
+  const chatBox = document.querySelector(".chatbox-wrapper");
+  chatBox.appendChild(clipboardAlert);
+
+  setTimeout(() => {
+    clipboardAlert.remove();
+  }, 3000);
 }
 
-function displayMessage(sender, message) {
-    const messageContainer = document.createElement('div');
-    messageContainer.classList.add('message-container');
-    messageContainer.classList.add(sender + '-message');
-
-    const messageBubble = document.createElement('div');
-    messageBubble.classList.add('message');
-
-    const messageText = document.createElement('div');
-    messageText.classList.add('message-text');
-    messageText.innerHTML = message; // Use innerHTML to render anchor tags
-
-    messageBubble.appendChild(messageText);
-    messageContainer.appendChild(messageBubble);
-
-    chatMessages.appendChild(messageContainer);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+function copyToClipboard(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
 }
 
-function detectIntent(message) {
-    const lowerCaseMessage = message.toLowerCase();
-
-    if (lowerCaseMessage.includes('hello') || lowerCaseMessage.includes('hi')) {
-        return 'greeting';
-    } else if (lowerCaseMessage.includes('who') && lowerCaseMessage.includes('you')) {
-        return 'identity';
-    }
-
-    // If no specific intent is detected, return a default intent
-    return 'default';
-}
-
-function createContext(intent) {
-    switch (intent) {
-        case 'greeting':
-            return 'You\'re a helpful assistant.';
-        default:
-            return '';
-    }
-}
-
-function handleGreeting() {
-    const greetingResponse = 'Hello! How can I assist you today?';
-    displayMessage('model', greetingResponse);
-}
-
-function handleIdentity() {
-    const identityResponse = 'I\'m a helpful assistant here to provide you with information and assistance.';
-    displayMessage('model', identityResponse);
+function scrollToBottom() {
+  messageBox.scrollTop = messageBox.scrollHeight;
 }
